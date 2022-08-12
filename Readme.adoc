@@ -1,0 +1,19 @@
+.Create environment
+[source, sh]
+----
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+----
+
+.Run
+[source, sh]
+----
+python appd-dependency-check.py[OPTIONS] COMMAND [ARGS]...
+
+# Or make the script executable
+chmod +x appd-dependency-check.py
+#And running it as any other executable:<br/>
+appd-dependency-check.py [OPTIONS] COMMAND [ARGS]...
+----
