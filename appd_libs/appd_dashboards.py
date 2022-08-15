@@ -49,10 +49,17 @@ class AppdDashboards:
                     f"Dashboard [{i}/{len(dashboards)}][{dashboard['name']}] - Check Dashboard"
                 )
                 for widget in dashboard["widgets"]:
-                    if self.__check_widget_used_by_app(widget, app_id, metrics):
-                        self.__append_dashboard_and_widget(
-                            used_dashboards, dashboard, widget
-                        )
+                    if len(metrics) > 0:
+                        for metric in metrics:
+                            if self.__check_if_widget_is_used(widget, app_id, metric):
+                                self.__append_dashboard_and_widget(
+                                    used_dashboards, dashboard, widget, metric
+                                )
+                    else:
+                        if self.__check_if_widget_is_used(widget, app_id):
+                            self.__append_dashboard_and_widget(
+                                used_dashboards, dashboard, widget
+                            )
 
                 logging.debug(
                     f"Dashboard [{i}/{len(dashboards)}][{dashboard['name']}] - Dashboard checked"
@@ -62,20 +69,25 @@ class AppdDashboards:
             logging.error(f"Failed to map dashboards: {type(e)}")
             raise e
 
-    def __check_widget_used_by_app(
-        self, widget: dict, app_id: int = None, metrics: str = None
+    def __check_if_widget_is_used(
+        self, widget: dict, app_id: int = None, metric: str = None
     ) -> boolean:
-        if widget["type"] in ["TIMESERIES_GRAPH", "PIE", "GAUGE", "METRIC_LABEL"]:
-            return self.__check_metrics_widget_used_by_app(widget, app_id, metrics)
-        elif widget["type"] == "HEALTH_LIST":
-            if app_id is None:
-                return False
-            return self.__check_health_widget_used_by_app(widget, app_id)
-        elif widget["type"] == "LIST":
-            if app_id is None:
-                return False
-            return self.__check_event_widget_used_by_app(widget, app_id)
-        return False
+        if metric is not None: 
+            if widget["type"] in ["TIMESERIES_GRAPH", "PIE", "GAUGE", "METRIC_LABEL"]:
+                return self.__check_metrics_widget_used_by_app(widget, app_id, metric)
+            return False
+        else: 
+            if widget["type"] in ["TIMESERIES_GRAPH", "PIE", "GAUGE", "METRIC_LABEL"]:
+                return self.__check_metrics_widget_used_by_app(widget, app_id, metric)
+            elif widget["type"] == "HEALTH_LIST":
+                if app_id is None:
+                    return False
+                return self.__check_health_widget_used_by_app(widget, app_id)
+            elif widget["type"] == "LIST":
+                if app_id is None:
+                    return False
+                return self.__check_event_widget_used_by_app(widget, app_id)
+            return False
 
     def __check_event_widget_used_by_app(self, widget, app_id):
         if (
@@ -109,7 +121,7 @@ class AppdDashboards:
                     or criteria["metricMatchCriteria"]["metricExpression"][
                         "inputMetricPath"
                     ]
-                    in metric
+                    == metric
                 ]
 
                 return app_id in app_ids
@@ -120,26 +132,32 @@ class AppdDashboards:
                     if criteria["metricMatchCriteria"]["metricExpression"][
                         "inputMetricPath"
                     ]
-                    in metric
+                    == metric
                 ]
                 return len(matching_criterias) > 0
 
         else:
             return False
 
-    def __append_dashboard_and_widget(self, used_dashboards, dashboard, widget):
+    def __append_dashboard_and_widget(
+        self, used_dashboards, dashboard, widget, metric: str = None
+    ):
         used_dashboard = next(
             (item for item in used_dashboards if item["id"] == dashboard["id"]),
             None,
         )
 
+        widget_dict = {"id": widget["id"]}
+        if metric is not None:
+            widget_dict["metric"] = metric
+
         if used_dashboard is not None:
-            used_dashboard["widget_ids"].append(widget["id"])
+            used_dashboard["widgets"].append(widget_dict)
         else:
             used_dashboards.append(
                 {
                     "id": dashboard["id"],
                     "name": dashboard["name"],
-                    "widget_ids": [widget["id"]],
+                    "widgets": [widget_dict],
                 }
             )

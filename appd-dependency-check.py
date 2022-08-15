@@ -86,7 +86,12 @@ def dashboards(application_id, application_name, metric):
                 f"Application {output_name_style} [{application['id']}]{' (and Metrics) are' if len(metric) > 0 else ' is'} used in {dashboards_count_style} Dashboards"
             )
             for dashboard in application["dashboards_used"]:
-                click.echo(f"\t[{dashboard['id']}] {dashboard['name']}")
+                if len(metric) > 0:
+                    matched_metrics = [widget['metric'] for widget in dashboard['widgets']]
+                    metrics_style = click.style(f"{matched_metrics}", bold=True)
+                    click.echo(f"\t[{dashboard['id']}] {dashboard['name']}, metrics: {metrics_style}")
+                else: 
+                    click.echo(f"\t[{dashboard['id']}] {dashboard['name']}")
 
     elif len(metric) > 0:
         with click.progressbar(length=1, label=f"Check Dashboards for Metrics") as bar:
@@ -107,7 +112,9 @@ def dashboards(application_id, application_name, metric):
             f"Metrics {output_name_style} is used in {dashboards_count_style} Dashboards"
         )
         for dashboard in dashboards_used:
-            click.echo(f"\t[{dashboard['id']}] {dashboard['name']}")
+            matched_metrics = [widget['metric'] for widget in dashboard['widgets']]
+            metrics_style = click.style(f"{matched_metrics}", bold=True)
+            click.echo(f"\t[{dashboard['id']}] {dashboard['name']}, metrics: {metrics_style}")
     else:
         click.echo(f"Neither application, nor metrics is set", err=True)
         sys.exit(1)
@@ -119,21 +126,6 @@ def healthrules():
     click.echo("comming soon...")
 
 
-@click.command()
-def applications():
-    """This command lists all available AppD applications"""
-
-    appd_applications = AppdApplications(rest_api)
-
-    with click.progressbar(length=1, label="Load Applications") as bar:
-        apps = appd_applications.get_applications()
-        bar.update(1)
-
-    with click.progressbar(apps, label="Load Application Details") as bar:
-        for app in bar:
-            appd_applications.get_application(app["id"])
-
-
 @click.group()
 def group():
     pass
@@ -141,7 +133,6 @@ def group():
 
 group.add_command(dashboards)
 group.add_command(healthrules)
-group.add_command(applications)
 
 
 def get_applications_to_check(application_ids, application_names):
