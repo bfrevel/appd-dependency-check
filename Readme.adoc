@@ -1,4 +1,8 @@
-.Create environment
+= AppDynamics Dependency Check
+
+== Configure Environment 
+
+=== Create environment
 [source, sh]
 ----
 python3 -m venv .venv
@@ -7,13 +11,99 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ----
 
-.Run
+.Prepare environment
 [source, sh]
 ----
-python appd-dependency-check.py[OPTIONS] COMMAND [ARGS]...
+cp config.tpl.ini config.ini
+# enter values for 
+## controller:url
+## controller:client_id
+## controller:client_secret
+----
+
+
+== Executing Scripts
+
+[source, sh]
+----
+python appd-dependency-check.py [OPTIONS] COMMAND [ARGS]...
 
 # Or make the script executable
 chmod +x appd-dependency-check.py
 #And running it as any other executable:<br/>
 appd-dependency-check.py [OPTIONS] COMMAND [ARGS]...
 ----
+
+
+== Run
+
+=== Command `dashboards`
+
+
+.Help
+[source, sh]
+----
+./appd-dependency-check.py dashboards --help
+Usage: appd-dependency-check.py dashboards [OPTIONS]
+
+  This command checks AppD Dashboards for existing metrics
+
+Options:
+  --application-id INTEGER        search for this application ids in
+                                  dashboards
+  --application-name TEXT         search for this applications in dashboards
+  --metric TEXT                   search for this metric in dashboards
+  --metric-match [exact|contains|regex]
+                                  defines how to match metrics  [default:
+                                  exact]
+  --help                          Show this message and exit.
+----
+
+
+.Options
+|===
+|Option |Description |Multiple/Choice/Default
+
+|application-id
+|search for this applicatoin id(s) in all dashboards
+a|
+* [*] multiple values possible
+* [*] no default
+
+|application-name
+|search for this application name(s) in all dashboards
+a|
+* [*] multiple values possible
+* [*] no default
+
+|metric
+|search for this metric(s) name in all dashboards
+a|
+* [*] multiple values possible
+* [*] no default
+
+|metric-match
+|defines how to match `metric`s
+a|
+* [*] multiple values possible
+* [*] no default
+|===
+
+
+* Combination of `application-id` and `application-name` is possible.
+* If only `application-(?:id|name)` is set, the script will check all dashboards for these *applications*
+* If only `metric` is set, the script will check all dashboards for these *metrics* 
+* If `application-(?:id|name)` and `metric` is set, the _dependency-check_ will search all for dashboards, which are using the given *metrics* of the specified *applications*
+
+
+[CAUTION]
+====
+The script supports the following widget types:
+
+* Time Series Graph (TIMESERIES_GRAPH)
+* Pie Chart (PIE)
+* Gauge (GAUGE)
+* Metric Value (METRIC_LABEL)
+* Health Status (HEALTH_LIST)
+* Event List (LIST)
+====
