@@ -52,24 +52,30 @@ class AppdDashboards:
             logging.debug(
                 f"Dashboard [{i}/{len(dashboards)}][{dashboard['name']}] - Check Dashboard"
             )
-            for widget in dashboard["widgets"]:
-                if len(metrics) > 0:
-                    self.__check_widget_by_app_and_metrics(
-                        used_dashboards,
-                        dashboard,
-                        widget,
-                        app_id,
-                        metrics,
-                        metric_match,
-                    )
-                else:
-                    self.__check_widget_by_app(
-                        used_dashboards, dashboard, widget, app_id
-                    )
 
-            logging.debug(
-                f"Dashboard [{i}/{len(dashboards)}][{dashboard['name']}] - Dashboard checked"
-            )
+            try:
+                for widget in dashboard["widgets"]:
+                    if len(metrics) > 0:
+                        self.__check_widget_by_app_and_metrics(
+                            used_dashboards,
+                            dashboard,
+                            widget,
+                            app_id,
+                            metrics,
+                            metric_match,
+                        )
+                    else:
+                        self.__check_widget_by_app(
+                            used_dashboards, dashboard, widget, app_id
+                        )
+                logging.debug(
+                    f"Dashboard [{i}/{len(dashboards)}][{dashboard['name']}] - Dashboard checked"
+                )
+            except Exception as e:
+                logging.error(
+                    f"Dashboard [{i}/{len(dashboards)}][{dashboard['name']}] - Failed to load dashboard"
+                )
+
         return used_dashboards
 
     def __check_widget_by_app_and_metrics(
@@ -101,13 +107,24 @@ class AppdDashboards:
         metric_match: str = None,
     ) -> boolean:
         if metric is not None:
-            if widget["type"] in ["TIMESERIES_GRAPH", "PIE", "GAUGE", "METRIC_LABEL"]:
+            if widget["type"] in [
+                "TIMESERIES_GRAPH",
+                "PIE",
+                "GAUGE",
+                "METRIC_LABEL"]:
                 return self.__check_metrics_widget_used_by_app(
                     widget, app_id, metric, metric_match
                 )
+            elif widget["type"] == "ANALYTICS":
+                return self.__check_analytics_widget(widget, metric, metric_match)
             return False
         else:
-            if widget["type"] in ["TIMESERIES_GRAPH", "PIE", "GAUGE", "METRIC_LABEL"]:
+            if widget["type"] in [
+                "TIMESERIES_GRAPH",
+                "PIE",
+                "GAUGE",
+                "METRIC_LABEL"
+            ]:
                 return self.__check_metrics_widget_used_by_app(
                     widget, app_id, metric, metric_match
                 )
@@ -120,6 +137,12 @@ class AppdDashboards:
                     return False
                 return self.__check_event_widget_used_by_app(widget, app_id)
             return False
+
+    def __check_analytics_widget(self, widget:dict, metric: str, metric_match: str):
+        for adql_query in widget["adqlQueries"]:
+            if self.__check_match(adql_query, metric, metric_match):
+                return True
+        return False
 
     def __check_event_widget_used_by_app(self, widget: dict, app_id: int):
         if (
@@ -148,7 +171,6 @@ class AppdDashboards:
         metric_match: str = None,
     ) -> boolean:
         if widget["widgetsMetricMatchCriterias"] is not None:
-
             if app_id is not None:
                 app_ids = [
                     i["metricMatchCriteria"]["applicationId"]

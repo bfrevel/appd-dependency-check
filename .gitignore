@@ -131,3 +131,5 @@ dmypy.json
 
 .vscode/
 config.ini
+CustomDashboard*.json
+tmp.json
