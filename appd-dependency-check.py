@@ -15,10 +15,22 @@ config = configparser.ConfigParser()
 config.read("config.ini")
 
 rest_api = AppdRestApi(
-    config["controller"]["url"],
-    config["controller"]["client_id"],
-    config["controller"]["client_secret"],
+    config.get("controller", "url"),
+    config.get("controller", "client_id"),
+    config.get("controller", "client_secret"),
 )
+appd_internal_applications = {
+    "analytics_application_id": config.getint(
+        "applications", "analytics_application_id", fallback=0
+    ),
+    "db_mon_application": config.getint(
+        "applications", "db_mon_application", fallback=0
+    ),
+    "sim_application_id": config.getint(
+        "applications", "sim_application_id", fallback=0
+    ),
+}
+
 
 appd_applications = AppdApplications(rest_api)
 appd_dashboards = AppdDashboards(rest_api)
@@ -144,18 +156,31 @@ def healthrules(app_id, app_name, metric, metric_match):
                 healthrule["details"] = appd_health_rules.get_healthrule(
                     app["id"], healthrule["id"]
                 )
+                if (
+                    "id" in healthrule["details"]
+                    and "name" in healthrule["details"]
+                    and "evalCriterias" in healthrule["details"]
+                ):
+                    healthrule["json_valid"] = True
+                else:
+                    click.echo(
+                        f'{get_error()}JSON for healthrule id:{healthrule["id"]} in application {app["name"]}[id:{app["id"]}] is not valid',
+                        err=True,
+                    )
+                    healthrule["json_valid"] = False
 
     for app in applications_to_check:
         app["match"] = False
         for healthrule in app["healthrules"]:
-            healthrule["match"] = appd_health_rules.check_healthrule_by_metrics(
-                healthrule["details"], metric, metric_match
-            )
-            if (
-                healthrule["match"]["criticalCriteria"]
-                or healthrule["match"]["warningCriteria"]
-            ):
-                app["match"] = True
+            if healthrule["json_valid"]:
+                healthrule["match"] = appd_health_rules.check_healthrule_by_metrics(
+                    app, healthrule["details"], metric, metric_match
+                )
+                if (
+                    healthrule["match"]["criticalCriteria"]
+                    or healthrule["match"]["warningCriteria"]
+                ):
+                    app["match"] = True
 
     applications_mached = [app for app in applications_to_check if app["match"]]
 
@@ -189,22 +214,45 @@ group.add_command(healthrules)
 def get_applications_to_check(
     application_ids, application_names, fallback_all: bool = False
 ):
+    all_apps = appd_applications.get_applications()
+
+    if appd_internal_applications["analytics_application_id"] != 0:
+        all_apps.append(
+            appd_applications.get_application(
+                appd_internal_applications["analytics_application_id"]
+            )
+        )
+
+    if appd_internal_applications["db_mon_application"] != 0:
+        all_apps.append(
+            appd_applications.get_application(
+                appd_internal_applications["db_mon_application"]
+            )
+        )
+
+    if appd_internal_applications["sim_application_id"] != 0:
+        all_apps.append(
+            appd_applications.get_application(
+                appd_internal_applications["sim_application_id"]
+            )
+        )
+
     with click.progressbar(length=1, label="Load Application data") as bar:
-        available_applications = appd_applications.get_applications()
+        all_apps
         bar.update(1)
 
     if len(application_ids) > 0 or len(application_names) > 0:
         applications_to_check = get_applications_to_check_by_id(
-            application_ids, available_applications
+            application_ids, all_apps
         )
         applications_to_check += get_applications_to_check_by_name(
-            application_names, available_applications
+            application_names, all_apps
         )
 
         return list({i["id"]: i for i in applications_to_check}.values())
 
     elif fallback_all:
-        return [{"id": i["id"], "name": i["name"]} for i in available_applications]
+        return [{"id": i["id"], "name": i["name"]} for i in all_apps]
     else:
         return []
 
@@ -335,6 +383,18 @@ def get_count_style(elements):
         bold=True,
         fg="red" if elements_count > 0 else "green",
     )
+
+
+def get_info():
+    return f'[{click.style(str("INFO"),bold=True,fg="green")}]'
+
+
+def get_warn():
+    return f'[{click.style(str("WARN"),bold=True,fg="yellow")}]'
+
+
+def get_error():
+    return f'[ {click.style(str("ERR"),bold=True,fg="red")}]'
 
 
 def get_header_style(header):

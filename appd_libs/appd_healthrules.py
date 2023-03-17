@@ -1,4 +1,6 @@
 import re
+
+import click
 from .appd_rest_api import AppdRestApi
 import logging
 
@@ -30,32 +32,49 @@ class AppdHealthrules:
 
     def check_healthrule_by_metrics(
         self,
+        app: dict,
         healthrule: dict,
         metrics: list,
         metric_match: str,
     ):
+        match_result = {"criticalCriteria": False, "warningCriteria": False}
 
-        match_result = {'criticalCriteria': False, 'warningCriteria': False}
+        try:
+            if healthrule["evalCriterias"]["criticalCriteria"] is not None:
+                match_result["criticalCriteria"] = self.__check_criteria(
+                    healthrule["evalCriterias"]["criticalCriteria"],
+                    metrics,
+                    metric_match,
+                )
 
-        if healthrule['evalCriterias']['criticalCriteria'] is not None:
-            match_result['criticalCriteria'] = self.__check_criteria(healthrule['evalCriterias']['criticalCriteria'], metrics, metric_match)
-       
-        if healthrule['evalCriterias']['warningCriteria'] is not None:
-            match_result['warningCriteria'] = self.__check_criteria(healthrule['evalCriterias']['warningCriteria'], metrics, metric_match)
+            if healthrule["evalCriterias"]["warningCriteria"] is not None:
+                match_result["warningCriteria"] = self.__check_criteria(
+                    healthrule["evalCriterias"]["warningCriteria"],
+                    metrics,
+                    metric_match,
+                )
+        except Exception as e:
+            click.echo(
+                f'Healthrule in application {app["name"]}: Invalid JSON', err=True
+            )
 
         return match_result
 
-
-    def __check_criteria(self, criteria:dict, metrics: list, metric_match: str):
-        for condition in criteria['conditions']:
-            
+    def __check_criteria(self, criteria: dict, metrics: list, metric_match: str):
+        for condition in criteria["conditions"]:
             for metric in metrics:
-                if condition['evalDetail']['evalDetailType'] == 'METRIC_EXPRESSION':
-                    for expression_variable in condition['evalDetail']['metricExpressionVariables']:
-                        if self.__check_match(expression_variable['metricPath'], metric, metric_match):
+                if condition["evalDetail"]["evalDetailType"] == "METRIC_EXPRESSION":
+                    for expression_variable in condition["evalDetail"][
+                        "metricExpressionVariables"
+                    ]:
+                        if self.__check_match(
+                            expression_variable["metricPath"], metric, metric_match
+                        ):
                             return True
-                elif condition['evalDetail']['evalDetailType'] == 'SINGLE_METRIC':
-                    if self.__check_match(condition['evalDetail']['metricPath'], metric, metric_match):
+                elif condition["evalDetail"]["evalDetailType"] == "SINGLE_METRIC":
+                    if self.__check_match(
+                        condition["evalDetail"]["metricPath"], metric, metric_match
+                    ):
                         return True
 
     def __check_match(self, input: str, metric: str, metric_match: str):
