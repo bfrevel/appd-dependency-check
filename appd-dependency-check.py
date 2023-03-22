@@ -59,7 +59,7 @@ appd_health_rules = AppdHealthrules(rest_api)
 @click.option(
     "--metric-match",
     help="defines how to match metrics",
-    type=click.Choice(["contains", "exact", "regex"]),
+    type=click.Choice(["contains", "contains_case_sensitive", "exact", "regex"]),
     default="contains",
     show_default=True,
 )
@@ -131,7 +131,7 @@ def dashboards(app_id, app_name, metric, metric_match):
 @click.option(
     "--metric-match",
     help="defines how to match metrics",
-    type=click.Choice(["contains", "exact", "regex"]),
+    type=click.Choice(["contains", "contains_case_sensitive", "exact", "regex"]),
     default="contains",
     show_default=True,
 )
@@ -179,27 +179,34 @@ def healthrules(app_id, app_name, metric, metric_match):
                 if (
                     healthrule["match"]["criticalCriteria"]
                     or healthrule["match"]["warningCriteria"]
+                    or healthrule["match"]["informationPoint"]
                 ):
                     app["match"] = True
-
+            else:
+                healthrule["match"] = None
     applications_mached = [app for app in applications_to_check if app["match"]]
 
     click.echo(
-        f"Metrics {get_header_style(list(metric))} are used in {get_count_style(applications_mached)} Dashboards"
+        f"Metrics {get_header_style(list(metric))} are used in {get_count_style(applications_mached)} Healthrules"
     )
 
     for app in applications_to_check:
         if app["match"]:
-            click.echo(f"Application: {get_header_style(app['name'])} [{app['id']}]")
+            click.echo(f"\tApplication: {get_header_style(app['name'])} [{app['id']}]")
             for healthrule in app["healthrules"]:
-                if healthrule["match"]["criticalCriteria"]:
-                    click.echo(
-                        f"\tHealthrule: {get_header_style(healthrule['name'])} [{healthrule['id']}], CriticalCriteria"
-                    )
-                if healthrule["match"]["warningCriteria"]:
-                    click.echo(
-                        f"\tHealthrule: {get_header_style(healthrule['name'])} [{healthrule['id']}], WriticalCriteria"
-                    )
+                if healthrule["match"]:
+                    if healthrule["match"]["criticalCriteria"]:
+                        click.echo(
+                            f"\t\tHealthrule: {get_header_style(healthrule['name'])} [{healthrule['id']}], CriticalCriteria"
+                        )
+                    if healthrule["match"]["warningCriteria"]:
+                        click.echo(
+                            f"\t\tHealthrule: {get_header_style(healthrule['name'])} [{healthrule['id']}], WriticalCriteria"
+                        )
+                    if healthrule["match"]["informationPoint"]:
+                        click.echo(
+                            f"\t\tHealthrule: {get_header_style(healthrule['name'])} [{healthrule['id']}], InformationPoint"
+                        )
 
 
 @click.group()

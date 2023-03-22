@@ -1,5 +1,7 @@
 import re
 from xmlrpc.client import boolean, boolean
+
+import click
 from .appd_rest_api import AppdRestApi
 import logging
 
@@ -175,21 +177,20 @@ class AppdDashboards:
                 app_ids = [
                     i["metricMatchCriteria"]["applicationId"]
                     for i in widget["widgetsMetricMatchCriterias"]
-                    if self.__check_match(
-                        i["metricMatchCriteria"]["metricExpression"]["inputMetricPath"],
+                    if self.__check_match_expression(
+                        i["metricMatchCriteria"]["metricExpression"],
                         metric,
                         metric_match,
                     )
                 ]
 
-                # Adapt compare here
                 return app_id in app_ids
             else:
                 matching_criterias = [
                     i
                     for i in widget["widgetsMetricMatchCriterias"]
-                    if self.__check_match(
-                        i["metricMatchCriteria"]["metricExpression"]["inputMetricPath"],
+                    if self.__check_match_expression(
+                        i["metricMatchCriteria"]["metricExpression"],
                         metric,
                         metric_match,
                     )
@@ -229,6 +230,17 @@ class AppdDashboards:
             elif metric is not None:
                 used_widget["metrics"].append(metric)
 
+
+    def __check_match_expression(self, expression: dict, metric: str, metric_match: str):
+        if expression["type"] == "BOOLEAN_METRIC_EXPRESSION":
+            return self.__check_match_expression(expression["expression1"], metric, metric_match) or self.__check_match_expression(expression["expression2"], metric, metric_match)
+        elif expression["type"] == "LEAF_METRIC_EXPRESSION":
+            if expression["metricDefinition"] is None:
+                return False
+            return self.__check_match(expression["metricDefinition"]["logicalMetricName"], metric, metric_match)
+        else:
+            click.echo(f'Unknown expression type: {expression["type"]}')
+
     def __check_match(self, input: str, metric: str, metric_match: str):
         if metric is None:
             return True
@@ -238,7 +250,9 @@ class AppdDashboards:
         if metric_match == "exact":
             return input == metric
         elif metric_match == "contains":
-            return metric in input
+            return re.search(metric, input, re.IGNORECASE)
+        elif metric_match == "contains_case_sensitive":
+            return re.search(metric, input)
         elif metric_match == "regex":
             metric_regex = re.compile(metric)
             return metric_regex.match(input)

@@ -37,9 +37,29 @@ class AppdHealthrules:
         metrics: list,
         metric_match: str,
     ):
-        match_result = {"criticalCriteria": False, "warningCriteria": False}
+        match_result = {
+            "criticalCriteria": False,
+            "warningCriteria": False,
+            "informationPoint": False,
+        }
 
         try:
+            if (
+                healthrule["affects"]["affectedEntityType"] == "INFORMATION_POINTS"
+                and healthrule["affects"]["affectedInformationPoints"][
+                    "informationPointScope"
+                ]
+                == "SPECIFIC_INFORMATION_POINTS"
+            ):
+                affected_information_points = healthrule["affects"][
+                    "affectedInformationPoints"
+                ]["informationPoints"]
+                match_result["informationPoint"] = self.__check_affected_entities(
+                    affected_information_points,
+                    metrics,
+                    metric_match,
+                )
+
             if healthrule["evalCriterias"]["criticalCriteria"] is not None:
                 match_result["criticalCriteria"] = self.__check_criteria(
                     healthrule["evalCriterias"]["criticalCriteria"],
@@ -54,11 +74,17 @@ class AppdHealthrules:
                     metric_match,
                 )
         except Exception as e:
-            click.echo(
-                f'Healthrule in application {app["name"]}: Invalid JSON', err=True
-            )
+            click.echo(f'Healthrule in application {app["name"]}: Invalid JSON', e)
 
         return match_result
+
+    def __check_affected_entities(
+        self, entities: dict, metrics: list, metric_match: str
+    ):
+        for entity in entities:
+            for metric in metrics:
+                if self.__check_match(entity, metric, metric_match):
+                    return True
 
     def __check_criteria(self, criteria: dict, metrics: list, metric_match: str):
         for condition in criteria["conditions"]:
@@ -86,7 +112,9 @@ class AppdHealthrules:
         if metric_match == "exact":
             return input == metric
         elif metric_match == "contains":
-            return metric in input
+            return re.search(metric, input, re.IGNORECASE)
+        elif metric_match == "contains_case_sensitive":
+            return re.search(metric, input)
         elif metric_match == "regex":
             metric_regex = re.compile(metric)
             return metric_regex.match(input)
