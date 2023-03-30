@@ -164,7 +164,7 @@ def healthrules(app_id, app_name, metric, metric_match):
                     healthrule["json_valid"] = True
                 else:
                     click.echo(
-                        f'{get_error()}JSON for healthrule id:{healthrule["id"]} in application {app["name"]}[id:{app["id"]}] is not valid',
+                        f'{get_error()}JSON for healthrule {healthrule["name"]}:[{healthrule["id"]}] in application {app["name"]}[id:{app["id"]}] is not valid',
                         err=True,
                     )
                     healthrule["json_valid"] = False
